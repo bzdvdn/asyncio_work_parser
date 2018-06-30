@@ -25,9 +25,9 @@ class Parser(object):
 
 	async def get_total_pages(self, html):
 		soup = BeautifulSoup(html, "lxml")
-		pages = soup.find('ul', class_='pagination' ).find_all('a')[-1].get('href')
+		pages = soup.find('ul', class_='pagination' ).find_all('a')[-2].get('href')
+		print(pages)
 		total_pages = int(pages.split('=')[1].split('&')[0]) + 1
-		print(total_pages)
 
 		return int(total_pages)
 
@@ -46,7 +46,8 @@ class Parser(object):
 			))
 			print(data['title'], ' parsed!')
 
-
+	def get_pages_data(self, html):
+		raise NotImplementedError
 	
 
 	async def workparse(self, useragent):
@@ -55,8 +56,7 @@ class Parser(object):
 		# base_url = 'https://www.work.ua/jobs-' + self.message + '/?'
 		# page = 'page='
 		html = await asyncio.ensure_future(self.get_html(self.url))
-		total_pages = await asyncio.ensure_future(self.get_total_pages(html))
-		
+		total_pages = await self.get_total_pages(html)		
 
 		for i in range(1, total_pages+1):
 			url_gen = self.base_url + self.page + str(i)
@@ -64,6 +64,14 @@ class Parser(object):
 			await asyncio.ensure_future(self.get_pages_data(html))	
 
 class WorkUaParser(Parser):
+	async def get_total_pages(self, html):
+		soup = BeautifulSoup(html, "lxml")
+		pages = soup.find('ul', class_='pagination' ).find_all('a')[-2].get('href')
+		total_pages = int(pages.split('=')[-1])
+		print(total_pages)
+
+		return int(total_pages)
+
 	async def get_pages_data(self, html):
 		print("DATA")
 		soup = BeautifulSoup(html, "lxml")
@@ -118,12 +126,11 @@ def read_file(filename):
 useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
-	p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='ruby', chat_id='121212121')
+	p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(p.workparse(useragent))
 	loop.close()
 	
-
 if __name__ == '__main__':
 	main(useragent)
