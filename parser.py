@@ -55,13 +55,16 @@ class Parser(object):
 		# url = 'https://www.work.ua/jobs-' + self.message + '/'
 		# base_url = 'https://www.work.ua/jobs-' + self.message + '/?'
 		# page = 'page='
-		html = await asyncio.ensure_future(self.get_html(self.url))
+		html = await self.get_html(self.url)
 		total_pages = await self.get_total_pages(html)		
-
+		tasks = []
 		for i in range(1, total_pages+1):
 			url_gen = self.base_url + self.page + str(i)
-			html = await asyncio.ensure_future(self.get_html(url_gen, useragent))
-			await asyncio.ensure_future(self.get_pages_data(html))	
+			html = await self.get_html(url_gen, useragent)
+			task = asyncio.ensure_future(self.get_pages_data(html))
+			tasks.append(task)
+
+		return tasks	
 
 class WorkUaParser(Parser):
 	async def get_total_pages(self, html):
