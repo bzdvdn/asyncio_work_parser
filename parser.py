@@ -17,13 +17,13 @@ class Parser(object):
 		self.chat_id = chat_id
 
 
-	async def get_fetch(self, client, url):
-		async with client.get(url) as r:
+	async def get_fetch(self, client, url, useragent):
+		async with client.get(url, headers=useragent) as r:
 			return await r.text() 
 
 	async def get_html(self, url, useragent=None):
 		async with ClientSession() as client:
-			html = await self.get_fetch(client, url)
+			html = await self.get_fetch(client, url, useragent)
 			return html
 
 
@@ -176,12 +176,12 @@ def read_file(filename):
 	with open(filename, 'r') as f:
 		return f.read().split('\n')
 
-
+headers = {}
 useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
-	# p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
-	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
+	p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
+	# p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(asyncio.gather(p.start_parsing(useragent)))
