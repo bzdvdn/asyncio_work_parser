@@ -1,5 +1,5 @@
 import asyncio
-from aiohttp import ClientSession
+from aiohttp import ClientSession, request
 
 import csv
 from bs4 import BeautifulSoup
@@ -18,7 +18,7 @@ class Parser(object):
 
 
 	async def get_fetch(self, client, url):
-		async with client.get(url, skip_auto_headers={"User-Agent": useragent}) as r:
+		async with client.get(url) as r:
 			return await r.text() 
 
 	async def get_html(self, url, useragent=None):
@@ -28,11 +28,7 @@ class Parser(object):
 
 
 	async def get_total_pages(self, html):
-		soup = BeautifulSoup(html, "lxml")
-		pages = soup.find('ul', class_='pagination' ).find_all('a')[-2].get('href')
-		total_pages = int(pages.split('=')[-1])
-
-		return int(total_pages)
+		raise NotImplementedError
 
 	async def write_csv(self, data, message, fileprefix):
 		with open(str(self.chat_id) + '_-_' + str(self.message) + '.csv', 'a') as f:
@@ -57,10 +53,10 @@ class Parser(object):
 		# url = 'https://www.work.ua/jobs-' + self.message + '/'
 		# base_url = 'https://www.work.ua/jobs-' + self.message + '/?'
 		# page = 'page='
-		html = await asyncio.ensure_future(self.get_html(self.url))
-		total_pages = await self.get_total_pages(html)	
+		html = await asyncio.ensure_future(self.get_html(self.url, useragent))
+		total_pages = await asyncio.ensure_future(self.get_total_pages(html))	
 		tasks = []
-		for i in range(1, total_pages):
+		for i in range(1, total_pages+1):
 			print("PAGE: {}".format(i))
 			url_gen = self.base_url + self.page + str(i)
 			html = await asyncio.ensure_future(self.get_html(url_gen, useragent))
@@ -118,7 +114,62 @@ class WorkUaParser(Parser):
 															
 			}
 			
-			await self.write_csv(data=data, message=str(self.message), fileprefix=str(self.chat_id))
+			await self.write_csv(data=data, message=self.message, fileprefix=str(self.chat_id))
+
+class RabotaUAParser(Parser):
+	async def get_total_pages(self, html):
+		soup = BeautifulSoup(html, "lxml")
+		table = soup.find('div', class_='f-vacancylist-wrap fd-f-left ft-c-stretch').find('div', class_='fd-f1').find('section', class_='f-vacancylist-leftwrap f-paper').find('table', class_='f-vacancylist-tablewrap')
+		pages = table.find_all('tr')[-1].find_all('dd')[-2].find('a').get('href')
+		total_pages = int(pages.split('=')[-1])
+		return int(total_pages)
+
+	async def get_pages_data(self, html):
+		soup = BeautifulSoup(html, "lxml")
+		ads = soup.find('table', class_='f-vacancylist-tablewrap').find_all('tr')[0:-1]
+
+		for index, iterator in enumerate(ads, start=1):
+
+			try:
+				title = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').text.strip()
+				company = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('a', class_='f-text-dark-bluegray f-visited-enable').text.strip()
+				city = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('div', class_='f-vacancylist-characs-block fd-f-left-middle').find('p', class_='fd-merchant').text.strip()
+				url = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').find('a').get('href')
+				print('{} - index, url - {}'.format(index,url))
+			except Exception as e:
+				print("MAIN EXCEPTION")			
+			try:
+				page = await self.get_html('https://rabota.ua' + url)
+				desc_soup = BeautifulSoup(page, "lxml")
+			except Exception as e:
+				print(e)
+			try:
+				employment = desc_soup.find('div', class_='d_content').find('div', class_='d_des').find_all('ul')[2].text
+			except:
+				employment = '----'
+
+			try:
+				skills = desc_soup.find('div', class_='d_content').find('div', class_='d_des').find_all('ul')[5].text
+			except:
+				skills = '----'
+
+			try:
+				mb_skills = skills = desc_soup.find('div', class_='d_content').find('div', class_='d_des').find_all('ul')[4].text
+			except:
+				mb_skills = ''
+
+			data = {
+					'title': title,
+					'company': company,
+					'city': city,
+					'employment': employment,
+					'skills': skills,
+					'mb_skills': mb_skills,
+					'url': url	
+																
+				}
+
+			await self.write_csv(data, str(self.message), str(self.chat_id))
 
 
 def read_file(filename):
@@ -129,7 +180,8 @@ def read_file(filename):
 useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
-	p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
+	# p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
+	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(asyncio.gather(p.start_parsing(useragent)))
