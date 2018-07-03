@@ -1,5 +1,5 @@
 import asyncio
-from aiohttp import ClientSession, request
+from aiohttp import ClientSession
 
 import csv
 from bs4 import BeautifulSoup
@@ -49,10 +49,7 @@ class Parser(object):
 	
 
 	async def start_parsing(self, useragent):
-		print("STARTWORK")
-		# url = 'https://www.work.ua/jobs-' + self.message + '/'
-		# base_url = 'https://www.work.ua/jobs-' + self.message + '/?'
-		# page = 'page='
+		print("-.- -- START parsing -- -.-")
 		html = await asyncio.ensure_future(self.get_html(self.url, useragent))
 		total_pages = await asyncio.ensure_future(self.get_total_pages(html))	
 		tasks = []
@@ -172,16 +169,24 @@ class RabotaUAParser(Parser):
 			await self.write_csv(data, str(self.message), str(self.chat_id))
 
 
+class HHRUParser(Parser):
+	def get_total_pages(self, html):
+		soup = BeautifulSoup(html, "lxml")
+		pages = soup.find('div', class_='paging').find_all('a',class_='paging-item')[-2].get('href')
+		total_pages = int(pages.split('=')[-1]) + 1
+		return int(total_pages)
+
+
 def read_file(filename):
 	with open(filename, 'r') as f:
 		return f.read().split('\n')
 
-headers = {}
 useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
-	p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
-	# p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
+	# p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
+	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
+	# p = HHRUParser(url='https://m.hh.ru/vacancies?text=', page='&page=', message=message.text, chat_id=message.from_user.id)
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(asyncio.gather(p.start_parsing(useragent)))
