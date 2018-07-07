@@ -44,7 +44,7 @@ class Parser(object):
 			))
 			print(data['title'], ' parsed!')
 
-	def get_pages_data(self, html):
+	async def get_pages_data(self, html):
 		raise NotImplementedError
 	
 
@@ -170,11 +170,50 @@ class RabotaUAParser(Parser):
 
 
 class HHRUParser(Parser):
-	def get_total_pages(self, html):
-		soup = BeautifulSoup(html, "lxml")
-		pages = soup.find('div', class_='paging').find_all('a',class_='paging-item')[-2].get('href')
-		total_pages = int(pages.split('=')[-1]) + 1
-		return int(total_pages)
+	async def get_fetch(self, client, url, useragent):
+		async with client.get(url, headers=useragent) as r:
+			return await r.json()
+
+	async def get_total_pages(self, html):
+		total_pages = html["pages"]
+		return total_pages
+
+	async def get_pages_data(self, html):
+		items = html["items"]
+
+		for index, iterator in enumerate(items, start=1):
+			name = iterator["name"]
+			url = iterator["url"]
+
+			response = await self.get_html(url)
+			soup = BeautifulSoup(response["description"], "lxml")
+
+			description = soup.text
+			data_url 	= response["alternate_url"]
+			city 		= response["area"]["name"]
+			company 	= response["employer"]["name"]
+			schedule 	= response["schedule"]["name"]
+			employment 	= response["employment"]["name"]
+
+			data = [
+				f"Название: {name}",
+				f"Город: {city}",
+				f"Компания: {company}",
+				f"Занятось: {schedule},{employment}",
+				f"Описание: {description}",
+				'                   ',
+				'-------NEXT-------',
+				'                   '
+			]
+
+			await self.write_file(data, str(self.message), str(self.chat_id))
+
+	async def write_file(self, data, message, fileprefix):
+		with open(str(self.chat_id) + '_-_' + str(self.message) + '.doc', 'a') as f:
+			for i in data:
+				f.write('\n{}\n'.format(i))
+
+			print(data[0], ' parsed!')
 
 
 def read_file(filename):
@@ -185,8 +224,8 @@ useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
 	# p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
-	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
-	# p = HHRUParser(url='https://m.hh.ru/vacancies?text=', page='&page=', message=message.text, chat_id=message.from_user.id)
+	# p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
+	p = HHRUParser(url='https://api.hh.ru/vacancies?text=', page='&page=', message='go', chat_id="222")
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(asyncio.gather(p.start_parsing(useragent)))
