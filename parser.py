@@ -30,19 +30,12 @@ class Parser(object):
 	async def get_total_pages(self, html):
 		raise NotImplementedError
 
-	async def write_csv(self, data, message, fileprefix):
-		with open(str(self.chat_id) + '_-_' + str(self.message) + '.csv', 'a') as f:
-			writer = csv.writer(f)
-			writer.writerow((
-				data['title'],
-				data['company'],
-				data['city'],
-				data['employment'],
-				data['url'],
-				data['skills'],
-				data['mb_skills'],
-			))
-			print(data['title'], ' parsed!')
+	async def write_file(self, data, message, fileprefix):
+		with open(str(self.chat_id) + '_-_' + str(self.message) + '.doc', 'a', encoding='utf-8') as f:
+			for i in data:
+				f.write('\n{}\n'.format(i))
+
+			print(data[0], ' parsed!')
 
 	async def get_pages_data(self, html):
 		raise NotImplementedError
@@ -84,34 +77,21 @@ class WorkUaParser(Parser):
 			try:
 				page = await self.get_html(url)
 				desc_soup = BeautifulSoup(page, 'lxml')
-				company = desc_soup.find('dl', class_='dl-horizontal').find('a').find('b').get_text().strip()
-				city = desc_soup.find('dl', class_='dl-horizontal').findAll('dd')[-2].get_text().strip()
-				employment = desc_soup.find('dl', class_='dl-horizontal').findAll('dd')[-1].get_text().strip()	
 			except Exception as e:
 				print(e)
 			try:
-				skills = desc_soup.find('div', class_='wordwrap').find('ul').get_text()
+				description = desc_soup.find('div', class_='wordwrap').text
 			except:
-				skills = ''
-			try:
-				mb_skills = desc_soup.find('div', class_='wordwrap').find_all('ul')[1].get_text()
-			except:
-				mb_skills = ''
-				
+				description = '----'
 
-
-			data = {
-					'title': title,
-					'company': company,
-					'city': city,
-					'employment': employment,
-					'url': url,
-					'skills': skills,
-					'mb_skills':mb_skills,
-															
-			}
+			data = [
+				f"{description}",
+				'                   ',
+				'-------NEXT-------',
+				'                   '
+			]
 			
-			await self.write_csv(data=data, message=self.message, fileprefix=str(self.chat_id))
+			await self.write_file(data=data, message=self.message, fileprefix=str(self.chat_id))
 
 class RabotaUAParser(Parser):
 	async def get_total_pages(self, html):
@@ -141,32 +121,22 @@ class RabotaUAParser(Parser):
 			except Exception as e:
 				print(e)
 			try:
-				employment = desc_soup.find('div', class_='d_content').find('div', class_='d_des').find_all('ul')[2].text
+				description = desc_soup.find('div', class_='d_content').find('div', class_='d_des').text
 			except:
-				employment = '----'
+				description = '----'
 
-			try:
-				skills = desc_soup.find('div', class_='d_content').find('div', class_='d_des').find_all('ul')[5].text
-			except:
-				skills = '----'
+			data = [
+				f'Назвние: {title}',
+				f'Город: {city}',
+				f'Компания: {company}',
+				f'Ссылка: {url}',
+				f'Описание: {description}',
+				'                   ',
+				'-------NEXT-------',
+				'                   '
+			]
 
-			try:
-				mb_skills = skills = desc_soup.find('div', class_='d_content').find('div', class_='d_des').find_all('ul')[4].text
-			except:
-				mb_skills = ''
-
-			data = {
-					'title': title,
-					'company': company,
-					'city': city,
-					'employment': employment,
-					'skills': skills,
-					'mb_skills': mb_skills,
-					'url': url	
-																
-				}
-
-			await self.write_csv(data, str(self.message), str(self.chat_id))
+			await self.write_file(data, str(self.message), str(self.chat_id))
 
 
 class HHRUParser(Parser):
@@ -200,6 +170,7 @@ class HHRUParser(Parser):
 				f"Город: {city}",
 				f"Компания: {company}",
 				f"Занятось: {schedule},{employment}",
+				f"Ссылка: {data_url}",
 				f"Описание: {description}",
 				'                   ',
 				'-------NEXT-------',
@@ -208,12 +179,7 @@ class HHRUParser(Parser):
 
 			await self.write_file(data, str(self.message), str(self.chat_id))
 
-	async def write_file(self, data, message, fileprefix):
-		with open(str(self.chat_id) + '_-_' + str(self.message) + '.doc', 'a') as f:
-			for i in data:
-				f.write('\n{}\n'.format(i))
-
-			print(data[0], ' parsed!')
+	
 
 
 def read_file(filename):
@@ -224,8 +190,8 @@ useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
 	# p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
-	# p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
-	p = HHRUParser(url='https://api.hh.ru/vacancies?text=', page='&page=', message='go', chat_id="222")
+	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
+	# p = HHRUParser(url='https://api.hh.ru/vacancies?text=', page='&page=', message='go', chat_id="222")
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(asyncio.gather(p.start_parsing(useragent)))
