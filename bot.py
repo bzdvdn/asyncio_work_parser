@@ -1,0 +1,111 @@
+import telebot
+import os
+import asyncio
+import config
+
+from parser import WorkUaParser, HHRUParser, RabotaUAParser 
+
+__author__ = 'bzdvdn'
+
+Bot = telebot.TeleBot(config.token)
+
+Bot.remove_webhook()
+
+print(Bot.get_me())
+
+def read_file(filename):
+	with open(filename, 'r') as f:
+		return f.read().split('\n')
+
+def delete_file(filename):
+	os.remove(filename)
+
+@Bot.message_handler(commands=['help'])
+def handle_text(message):
+	Bot.send_message(message.chat.id, """
+		Этот бот парсит сайты(work.ua, rabota.ua, hh.ru):
+		на предмет поиска работы и выводит вам сsv файл.
+	команды /work_ua, /hh_ru, /rabota_ua
+		после нажатия команд нееобходимо выбрать слово из предложенных на клавиатуре:
+		по какому критерию вы хотите спарсить сайт. Например Python
+
+		""")
+
+
+@Bot.message_handler(commands=['start'])
+def start_command(message):
+	#bot.send_message(message.chat.id, 'начинаем парсить!')
+	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
+	user_markup.row('/work_ua', '/hh_ru','/rabota_ua')
+	user_markup.row('/help', '/stop')
+	Bot.send_message(message.from_user.id, 'Выберите команды для взаимодействия с ботом: ', reply_markup=user_markup)
+
+
+@Bot.message_handler(commands=["work_ua", "rabota_ua"])
+def work_ua_command(message):
+	print(message.text)
+	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
+	user_markup.row('Донецк', 'Харьков','Киев',"Днепр")
+	user_markup.row('Запорожье', 'Одесса','Полтава',"Львов")
+	user_markup.row('Все города')
+	user_markup.row('/help', '/stop')
+	msg = Bot.send_message(message.from_user.id, 'Выберите город: ', reply_markup=user_markup)
+	Bot.register_next_step_handler(msg, city_query, command=message.text)
+
+def city_query(message, command):
+	print(command)
+	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
+	user_markup.row('python', 'ruby','php')
+	user_markup.row('go', 'devops','javascript')
+	user_markup.row('1с', 'front-end', 'Django')
+	user_markup.row('системный администратор', '/start')
+	msg = Bot.send_message(message.from_user.id, 'Выберите критерии для парсинга:', reply_markup=user_markup)
+
+	if command == '/work_ua':
+		city = config.WORK_UA_CITIES.get(message.text)
+	elif command== '/rabota_ua':
+		city = config.RABOTA_UA_CITIES.get(message.text)
+
+	print(city)
+	Bot.register_next_step_handler(
+		message  = msg, 
+		callback = work_parse,
+		city 	 = city,
+		command  = command
+	)
+
+
+def parse(message, city,parser):
+	loop = asyncio.new_event_loop()
+	asyncio.set_event_loop(loop)
+
+	Bot.send_message(message.from_user.id, 'Данные парсятся, это может занять некоторое время....')
+	
+	loop.run_until_complete(parser.start_parsing())
+	try:
+		file = open(str(message.from_user.id) + '_-_' + str(message.text) + '.doc', 'rb')
+		Bot.send_document(message.from_user.id, file)
+		delete_file(str(message.from_user.id)  + '_-_' + str(message.text) + '.doc')
+		Bot.send_message(message.from_user.id, 'Готово! Для дальнейшей работы нажмите "/start"')
+	except:
+		Bot.send_message(message.from_user.id, "В данном городе нет вакансий по данному запросу - '{}'".format(message.text))
+		Bot.send_message(message.from_user.id, 'Готово! Для дальнейшей работы нажмите "/start"')
+	
+
+def work_parse(message, city,command):
+	if command == '/work_ua':
+		parser = WorkUaParser(url='https://www.work.ua/jobs-',city=city, page='?page=', message=message.text, chat_id=message.from_user.id)
+	elif command == '/rabota_ua':
+		parser = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list',city=city, page='&pg=', message=message.text, chat_id=message.from_user.id)
+
+	parse(message, city, parser)
+
+
+@Bot.message_handler(commands=['stop'])
+def stop_command(message):
+	hide_markup = telebot.types.ReplyKeyboardRemove()
+	Bot.send_message(message.from_user.id, 'конец взаимодействия с ботом: наберите "/start" для взаимодействия с ботом', reply_markup=hide_markup)
+	
+
+Bot.polling(none_stop=True, interval=0)
+

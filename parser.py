@@ -9,12 +9,19 @@ __author__ = 'bzdvdn'
 
 
 class Parser(object):
-	def __init__(self, url, page, message, chat_id):
+	def __init__(self, url,city, page, message, chat_id):
 		self.message = message
-		self.url = url + str(self.message) + "/" 
+		self.url = url
 		self.base_url = self.url 
 		self.page = page
 		self.chat_id = chat_id
+		self.city = city
+
+	def get_parsed_url(self, url, city, page, message):
+		raise NotImplementedError
+
+	def get_base_url(self, url, city, message):
+		raise NotImplementedError
 
 
 	async def get_fetch(self, client, url, useragent):
@@ -35,31 +42,78 @@ class Parser(object):
 			for i in data:
 				f.write('\n{}\n'.format(i))
 
-			print(data[0], ' parsed!')
+			print("WRITED!")
 
 	async def get_pages_data(self, html):
 		raise NotImplementedError
 	
 
-	async def start_parsing(self, useragent):
+	async def start_parsing(self, useragent=None):
 		print("-.- -- START parsing -- -.-")
-		html = await asyncio.ensure_future(self.get_html(self.url, useragent))
+		city = self.city
+		url  = self.get_base_url(
+				url  	= self.url,
+				city 	= city,
+				message = self.message,
+		)
+		print(url)
+		html = await asyncio.ensure_future(self.get_html(url, useragent))
 		total_pages = await asyncio.ensure_future(self.get_total_pages(html))	
 		tasks = []
-		for i in range(1, total_pages+1):
-			print("PAGE: {}".format(i))
-			url_gen = self.base_url + self.page + str(i)
+		if total_pages == 1:
+			url_gen = self.get_parsed_url(
+				url = self.url,
+				city = city, 
+				message = self.message,
+				page = self.page + str(total_pages)
+			)
+			print(url_gen)
 			html = await asyncio.ensure_future(self.get_html(url_gen, useragent))
-			task = asyncio.ensure_future(self.get_pages_data(html))
+			task = await asyncio.ensure_future(self.get_pages_data(html))
 			tasks.append(task)
+		else:
+			for i in range(1, total_pages+1):
+				print("PAGE: {}".format(i))
+				url_gen = self.get_parsed_url(
+					url = self.url,
+					city = city, 
+					message = self.message,
+					page = self.page + str(i)
+				)
+				print(url_gen)
+				html = await asyncio.ensure_future(self.get_html(url_gen, useragent))
+				task = asyncio.ensure_future(self.get_pages_data(html))
+				tasks.append(task)
+
+		print("-.- -- DONE! -- -.-")
 
 		return tasks	
 
 class WorkUaParser(Parser):
+	def get_base_url(self, url, city, message):
+		if self.city:
+			city = self.city + "-"
+		else:
+			city = ""
+		full_url = url + city + message + "/"
+
+		return full_url
+	def get_parsed_url(self, url, city, page, message):
+		if self.city:
+			city = self.city + "-"
+		else:
+			city = ""
+		full_url = url + city + message + "/" + page
+
+		return full_url
+
 	async def get_total_pages(self, html):
 		soup = BeautifulSoup(html, "lxml")
-		pages = soup.find('ul', class_='pagination' ).find_all('a')[-2].get('href')
-		total_pages = int(pages.split('=')[-1])
+		try:
+			pages = soup.find('ul', class_='pagination' ).find_all('a')[-2].get('href')
+			total_pages = int(pages.split('=')[-1])
+		except:
+			total_pages = 1
 
 		return int(total_pages)
 
@@ -94,49 +148,74 @@ class WorkUaParser(Parser):
 			await self.write_file(data=data, message=self.message, fileprefix=str(self.chat_id))
 
 class RabotaUAParser(Parser):
+	def get_base_url(self, url, city, message):
+		if city:
+			full_url = url + "?regionId=" + city + " &keyWords="+ message 
+		else:
+			full_url = url + "?keyWords=" + message 
+
+		return full_url
+
+	def get_parsed_url(self, url, city, page, message):
+		if city:
+			full_url = url + "?regionId=" + city + "&keyWords="+ message + page
+		else:
+			full_url = url + "?keyWords="+ message + page
+		print(full_url)
+
+		return full_url
+
 	async def get_total_pages(self, html):
 		soup = BeautifulSoup(html, "lxml")
+
 		table = soup.find('div', class_='f-vacancylist-wrap fd-f-left ft-c-stretch').find('div', class_='fd-f1').find('section', class_='f-vacancylist-leftwrap f-paper').find('table', class_='f-vacancylist-tablewrap')
-		pages = table.find_all('tr')[-1].find_all('dd')[-2].find('a').get('href')
-		total_pages = int(pages.split('=')[-1])
-		return int(total_pages)
+		try:
+			pages = table.find_all('tr')[-1].find_all('dd')[-2].find('a').get('href')
+			total_pages = int(pages.split('=')[-1])
+		except:
+		 	total_pages = 1
+		return total_pages
 
 	async def get_pages_data(self, html):
 		soup = BeautifulSoup(html, "lxml")
 		ads = soup.find('table', class_='f-vacancylist-tablewrap').find_all('tr')[0:-1]
+		count = soup.find('h2', class_='f-reset-offsets f-merchant').find("span", class_="fd-fat-merchant").text
+		
+		if int(count) > 0:
+			for index, iterator in enumerate(ads, start=1):
+				print(self.message)
+				try:
+					title = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').text.strip()
+					print(title)
+					company = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('a', class_='f-text-dark-bluegray f-visited-enable').text.strip()
+					city = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('div', class_='f-vacancylist-characs-block fd-f-left-middle').find('p', class_='fd-merchant').text.strip()
+					url = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').find('a').get('href')
+					print('{} - index, url - {}'.format(index,url))
 
-		for index, iterator in enumerate(ads, start=1):
+				except Exception as e:
+					print("MAIN EXCEPTION")			
+				try:
+					page = await self.get_html('https://rabota.ua' + url)
+					desc_soup = BeautifulSoup(page, "lxml")
+				except Exception as e:
+					print(e)
+				try:
+					description = desc_soup.find('div', class_='f-vacancy-description-inner-content').text
+				except:
+					description = '----'
 
-			try:
-				title = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').text.strip()
-				company = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('a', class_='f-text-dark-bluegray f-visited-enable').text.strip()
-				city = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('div', class_='f-vacancylist-characs-block fd-f-left-middle').find('p', class_='fd-merchant').text.strip()
-				url = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').find('a').get('href')
-				print('{} - index, url - {}'.format(index,url))
-			except Exception as e:
-				print("MAIN EXCEPTION")			
-			try:
-				page = await self.get_html('https://rabota.ua' + url)
-				desc_soup = BeautifulSoup(page, "lxml")
-			except Exception as e:
-				print(e)
-			try:
-				description = desc_soup.find('div', class_='d_content').find('div', class_='d_des').text
-			except:
-				description = '----'
+				data = [
+					f'Назвние: {title}',
+					f'Город: {city}',
+					f'Компания: {company}',
+					f'Ссылка: {url}',
+					f'Описание: {description}',
+					'                   ',
+					'-------NEXT-------',
+					'                   '
+				]
 
-			data = [
-				f'Назвние: {title}',
-				f'Город: {city}',
-				f'Компания: {company}',
-				f'Ссылка: {url}',
-				f'Описание: {description}',
-				'                   ',
-				'-------NEXT-------',
-				'                   '
-			]
-
-			await self.write_file(data, str(self.message), str(self.chat_id))
+				await self.write_file(data, str(self.message), str(self.chat_id))
 
 
 class HHRUParser(Parser):
@@ -189,8 +268,8 @@ def read_file(filename):
 useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
-	# p = WorkUaParser(url='https://www.work.ua/jobs-', page='page=', message='javascript', chat_id='121212121')
-	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list?keyWords=', page='&pg=', message='python', chat_id='1111')
+	# p = WorkUaParser(url='https://www.work.ua/jobs-',city="donetsk", page='?page=', message='php', chat_id='121212121')
+	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list',city="6", page='&pg=', message='python', chat_id='1111')
 	# p = HHRUParser(url='https://api.hh.ru/vacancies?text=', page='&page=', message='go', chat_id="222")
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
