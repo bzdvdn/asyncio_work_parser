@@ -73,7 +73,7 @@ class Parser(object):
 			tasks.append(task)
 		else:
 			for i in range(1, total_pages+1):
-				print("PAGE: {}".format(i))
+				print(f"PAGE: {i}")
 				url_gen = self.get_parsed_url(
 					url = self.url,
 					city = city, 
@@ -120,8 +120,7 @@ class WorkUaParser(Parser):
 	async def get_pages_data(self, html):
 		soup = BeautifulSoup(html, "lxml")
 		ads = soup.find_all('div', class_='card card-hover card-visited wordwrap job-link')
-		for index, iterator in enumerate(ads):
-			name  = title = iterator.find('h2').find('a').get('title').strip().lower()
+		for index, iterator in enumerate(ads, start=1):
 			try:
 				title = iterator.find('h2').find('a').get('title').strip().lower()
 				url = 'https://www.work.ua' + iterator.find('h2').find('a').get('href')
