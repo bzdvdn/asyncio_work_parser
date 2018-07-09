@@ -200,7 +200,7 @@ class RabotaUAParser(Parser):
 				except Exception as e:
 					print(e)
 				try:
-					description = desc_soup.find('div', class_='f-vacancy-description-inner-content').text
+					description = desc_soup.find('div', class_='f-vacancy-description').text
 				except:
 					description = '----'
 

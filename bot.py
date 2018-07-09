@@ -36,7 +36,7 @@ def handle_text(message):
 def start_command(message):
 	#bot.send_message(message.chat.id, 'начинаем парсить!')
 	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
-	user_markup.row('/work_ua', '/hh_ru','/rabota_ua')
+	user_markup.row('/work_ua','/rabota_ua', '/hh_ru')
 	user_markup.row('/help', '/stop')
 	Bot.send_message(message.from_user.id, 'Выберите команды для взаимодействия с ботом: ', reply_markup=user_markup)
 
@@ -57,8 +57,9 @@ def city_query(message, command):
 	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
 	user_markup.row('python', 'ruby','php')
 	user_markup.row('go', 'devops','javascript')
-	user_markup.row('1с', 'front-end', 'Django')
-	user_markup.row('системный администратор', '/start')
+	user_markup.row('1с', 'front-end', 'back-end')
+	user_markup.row('системный администратор', 'Программист')
+	user_markup.row('/start')
 	msg = Bot.send_message(message.from_user.id, 'Выберите критерии для парсинга:', reply_markup=user_markup)
 
 	if command == '/work_ua':
@@ -76,6 +77,7 @@ def city_query(message, command):
 
 
 def parse(message, city,parser):
+
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 
@@ -88,11 +90,15 @@ def parse(message, city,parser):
 		delete_file(str(message.from_user.id)  + '_-_' + str(message.text) + '.doc')
 		Bot.send_message(message.from_user.id, 'Готово! Для дальнейшей работы нажмите "/start"')
 	except:
-		Bot.send_message(message.from_user.id, "В данном городе нет вакансий по данному запросу - '{}'".format(message.text))
-		Bot.send_message(message.from_user.id, 'Готово! Для дальнейшей работы нажмите "/start"')
+		Bot.send_message(message.from_user.id, "В этом городе нет вакансий по данному запросу - '{}'".format(message.text))
+		Bot.send_message(message.from_user.id, 'Для дальнейшей работы нажмите "/start"')
 	
 
 def work_parse(message, city,command):
+	print(message.text)
+	if message.text == '/start':
+		start_command(message)
+		return None
 	if command == '/work_ua':
 		parser = WorkUaParser(url='https://www.work.ua/jobs-',city=city, page='?page=', message=message.text, chat_id=message.from_user.id)
 	elif command == '/rabota_ua':
