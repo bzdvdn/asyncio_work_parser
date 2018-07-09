@@ -43,7 +43,6 @@ def start_command(message):
 
 @Bot.message_handler(commands=["work_ua", "rabota_ua"])
 def work_ua_command(message):
-	print(message.text)
 	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
 	user_markup.row('Донецк', 'Харьков','Киев',"Днепр")
 	user_markup.row('Запорожье', 'Одесса','Полтава',"Львов")
@@ -53,7 +52,6 @@ def work_ua_command(message):
 	Bot.register_next_step_handler(msg, city_query, command=message.text)
 
 def city_query(message, command):
-	print(command)
 	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
 	user_markup.row('python', 'ruby','php')
 	user_markup.row('go', 'devops','javascript')
@@ -61,11 +59,16 @@ def city_query(message, command):
 	user_markup.row('системный администратор', 'Программист')
 	user_markup.row('/start')
 	msg = Bot.send_message(message.from_user.id, 'Выберите критерии для парсинга:', reply_markup=user_markup)
-
-	if command == '/work_ua':
-		city = config.WORK_UA_CITIES.get(message.text)
-	elif command== '/rabota_ua':
-		city = config.RABOTA_UA_CITIES.get(message.text)
+	try:
+		if command == '/work_ua':
+			city = config.WORK_UA_CITIES.get(message.text)
+		elif command == '/rabota_ua':
+			city = config.RABOTA_UA_CITIES.get(message.text)
+		elif command == '/hh_ru':
+			city = config.HHRU_CITIES.get(message.text)
+	except KeyError:
+		Bot.send_message(message.from_user.id, 'неверный город')
+		Bot.send_message(message.from_user.id, 'Нажмите "/start" для повторного взаимодействия с ботом')
 
 	print(city)
 	Bot.register_next_step_handler(
@@ -81,7 +84,7 @@ def parse(message, city,parser):
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 
-	Bot.send_message(message.from_user.id, 'Данные парсятся, это может занять некоторое время....')
+	Bot.send_message(message.from_user.id, 'Данные собираються, это может занять некоторое время....')
 	
 	loop.run_until_complete(parser.start_parsing())
 	try:
@@ -94,6 +97,19 @@ def parse(message, city,parser):
 		Bot.send_message(message.from_user.id, 'Для дальнейшей работы нажмите "/start"')
 	
 
+@Bot.message_handler(commands=["hh_ru"])
+def hhru_command(message):
+	user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
+	user_markup.row("Украина", "Россия")
+	user_markup.row('Москва', 'Питер','Киев',"Донецк")
+	user_markup.row('Одесса', 'Харьков','Запорожье',"Днепр")
+	user_markup.row('Нижний Новгород', 'Новосибирск','Ростов-на-Дону')
+	user_markup.row('Все города')
+	user_markup.row('/help', '/stop')
+	msg = Bot.send_message(message.from_user.id, 'Выберите город/страну: ', reply_markup=user_markup)
+	Bot.register_next_step_handler(msg, city_query, command=message.text)
+
+
 def work_parse(message, city,command):
 	print(message.text)
 	if message.text == '/start':
@@ -103,8 +119,12 @@ def work_parse(message, city,command):
 		parser = WorkUaParser(url='https://www.work.ua/jobs-',city=city, page='?page=', message=message.text, chat_id=message.from_user.id)
 	elif command == '/rabota_ua':
 		parser = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list',city=city, page='&pg=', message=message.text, chat_id=message.from_user.id)
+	elif command == "/hh_ru":
+		parser = HHRUParser(url='https://api.hh.ru/vacancies?text=',city=city, page='&page=', message=message.text, chat_id=message.from_user.id)
 
 	parse(message, city, parser)
+
+
 
 
 @Bot.message_handler(commands=['stop'])

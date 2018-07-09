@@ -219,6 +219,23 @@ class RabotaUAParser(Parser):
 
 
 class HHRUParser(Parser):
+	def get_base_url(self, url, city, message):
+		if city:
+			full_url = url + message + "&area=" + city
+		else:
+			full_url = url + message 
+
+		return full_url
+
+	def get_parsed_url(self, url, city, page, message):
+		if city:
+			full_url = url + message + "&area=" + city + page
+		else:
+			full_url = url + message + page
+		print(full_url)
+
+		return full_url
+
 	async def get_fetch(self, client, url, useragent):
 		async with client.get(url, headers=useragent) as r:
 			return await r.json()
@@ -233,6 +250,9 @@ class HHRUParser(Parser):
 		for index, iterator in enumerate(items, start=1):
 			name = iterator["name"]
 			url = iterator["url"]
+			
+			print(name)
+			print(url)
 
 			response = await self.get_html(url)
 			soup = BeautifulSoup(response["description"], "lxml")
@@ -269,8 +289,8 @@ useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
 	# p = WorkUaParser(url='https://www.work.ua/jobs-',city="donetsk", page='?page=', message='php', chat_id='121212121')
-	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list',city="6", page='&pg=', message='python', chat_id='1111')
-	# p = HHRUParser(url='https://api.hh.ru/vacancies?text=', page='&page=', message='go', chat_id="222")
+	# p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list',city="6", page='&pg=', message='python', chat_id='1111')
+	p = HHRUParser(url='https://api.hh.ru/vacancies?text=',city="", page='&page=', message='go', chat_id="222")
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(asyncio.gather(p.start_parsing(useragent)))
