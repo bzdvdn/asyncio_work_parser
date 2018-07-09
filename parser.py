@@ -60,7 +60,7 @@ class Parser(object):
 		html = await asyncio.ensure_future(self.get_html(url, useragent))
 		total_pages = await asyncio.ensure_future(self.get_total_pages(html))	
 		tasks = []
-		if total_pages == 1:
+		if total_pages <= 1:
 			url_gen = self.get_parsed_url(
 				url = self.url,
 				city = city, 
@@ -241,7 +241,10 @@ class HHRUParser(Parser):
 			return await r.json()
 
 	async def get_total_pages(self, html):
-		total_pages = html["pages"]
+		if html["pages"] > 1:
+			total_pages = html["pages"]
+		else:
+			total_pages = 0
 		return total_pages
 
 	async def get_pages_data(self, html):
@@ -250,7 +253,7 @@ class HHRUParser(Parser):
 		for index, iterator in enumerate(items, start=1):
 			name = iterator["name"]
 			url = iterator["url"]
-			
+
 			print(name)
 			print(url)
 
