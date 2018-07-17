@@ -62,7 +62,6 @@ class Parser(object):
 				city 	= city,
 				message = self.message,
 		)
-		print(url)
 		html = await asyncio.ensure_future(self.get_html(url, useragent))
 		total_pages = await asyncio.ensure_future(self.get_total_pages(html))	
 		tasks = []
@@ -166,7 +165,6 @@ class RabotaUAParser(Parser):
 			full_url = url + "?regionId=" + city + "&keyWords="+ message + page
 		else:
 			full_url = url + "?keyWords="+ message + page
-		print(full_url)
 
 		return full_url
 
@@ -185,8 +183,10 @@ class RabotaUAParser(Parser):
 		soup = BeautifulSoup(html, "lxml")
 		ads = soup.find('table', class_='f-vacancylist-tablewrap').find_all('tr')[0:-1]
 		count = soup.find('h2', class_='f-reset-offsets f-merchant').find("span", class_="fd-fat-merchant").text
+		valid_count = count.replace('\xa0', '')
+		print(valid_count)
 		
-		if int(count) > 0:
+		if int(valid_count) > 0:
 			for index, iterator in enumerate(ads, start=1):
 				try:
 					title = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').text.strip()
@@ -296,8 +296,8 @@ useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def main(useragent):
 	# p = WorkUaParser(url='https://www.work.ua/jobs-',city="donetsk", page='?page=', message='php', chat_id='121212121')
-	# p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list',city="6", page='&pg=', message='python', chat_id='1111')
-	p = HHRUParser(url='https://api.hh.ru/vacancies?text=',city="", page='&page=', message='go', chat_id="222")
+	p = RabotaUAParser(url='https://rabota.ua/jobsearch/vacancy_list',city="", page='&pg=', message='программист', chat_id='1111')
+	# p = HHRUParser(url='https://api.hh.ru/vacancies?text=',city="", page='&page=', message='программист', chat_id="222")
 	loop = asyncio.new_event_loop()
 	asyncio.set_event_loop(loop)
 	r = loop.run_until_complete(asyncio.gather(p.start_parsing(useragent)))
