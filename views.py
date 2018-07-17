@@ -1,18 +1,18 @@
-import asyncio
 import telebot
-from aiohttp import web
+from flask import Flask
+from flask import request
 from bot import Bot
+import config
 
-class AioView(web.View):
-	async def get(self):
-		return web.Response(text="WELCOME")
+app = Flask(__name__)
+app.config.from_object(config)
 
-	async def post(self):
-		try:
-			jsr = await self.request.json()
-			update = telebot.types.Update.de_json(jsr)
-			Bot.process_new_updates([update])
-		except:
-			jsr = "NONE"
-		print(jsr)	
-		return web.Response(text="")
+@app.route('/', methods=['POST', 'GET'])
+def index():
+	if request.method == 'POST':
+		r = request.get_json()
+		update = telebot.types.Update.de_json(r)
+		Bot.process_new_updates([update])
+		return ''
+
+	return '<h1> Bot welcomes you</h1>'

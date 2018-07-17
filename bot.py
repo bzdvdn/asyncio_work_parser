@@ -1,9 +1,10 @@
 import telebot
 import os
 import asyncio
+from random import choice
 import config
 
-from parser import WorkUaParser, HHRUParser, RabotaUAParser 
+from parser import WorkUaParser, HHRUParser, RabotaUAParser, read_file 
 
 __author__ = 'bzdvdn'
 
@@ -13,9 +14,7 @@ Bot.remove_webhook()
 
 print(Bot.get_me())
 
-def read_file(filename):
-	with open(filename, 'r') as f:
-		return f.read().split('\n')
+useragent = {'User-Agent': choice(read_file('useragent.txt'))}
 
 def delete_file(filename):
 	os.remove(filename)
@@ -29,6 +28,7 @@ def handle_text(message):
 		после нажатия команд нееобходимо выбрать город/страну из предложенных на клавиатуре и дальше выбрать критерий поиска:
 		Например 'Python'
 		""")
+	Bot.send_message(message.from_user.id, 'Нажмите "/start" для взаимодействия с ботом')
 
 
 @Bot.message_handler(commands=['start'])
@@ -85,7 +85,7 @@ def parse(message, city,parser):
 
 	Bot.send_message(message.from_user.id, 'Данные собираються, это может занять некоторое время....')
 	
-	loop.run_until_complete(parser.start_parsing())
+	loop.run_until_complete(parser.start_parsing(useragent=useragent))
 	try:
 		file = open(str(message.from_user.id) + '_-_' + str(message.text) + '.doc', 'rb')
 		Bot.send_document(message.from_user.id, file)

@@ -182,7 +182,6 @@ class RabotaUAParser(Parser):
 		
 		if int(count) > 0:
 			for index, iterator in enumerate(ads, start=1):
-				print(self.message)
 				try:
 					title = iterator.find('td').find('article', class_='f-vacancylist-vacancyblock').find('div',class_='fd-f-left').find('div', class_='fd-f1').find('h3').text.strip()
 					print(title)
@@ -192,7 +191,7 @@ class RabotaUAParser(Parser):
 					print('{} - index, url - {}'.format(index,url))
 
 				except Exception as e:
-					print("MAIN EXCEPTION")			
+					print("MAIN EXCEPTION", e)			
 				try:
 					page = await self.get_html('https://rabota.ua' + url)
 					desc_soup = BeautifulSoup(page, "lxml")
