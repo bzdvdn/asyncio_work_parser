@@ -4,6 +4,8 @@ from aiohttp import ClientSession
 import csv
 from bs4 import BeautifulSoup
 from random import choice
+from slugify import slugify
+
 
 __author__ = 'bzdvdn'
 
@@ -38,7 +40,11 @@ class Parser(object):
 		raise NotImplementedError
 
 	async def write_file(self, data, message, fileprefix):
-		with open(str(self.chat_id) + '_-_' + str(self.message) + '.doc', 'a', encoding='utf-8') as f:
+		with open(
+			slugify(
+				str(self.chat_id) + '_-_' + str(self.message)
+				) + '.doc', 'a', encoding='utf-8'
+			) as f:
 			for i in data:
 				f.write('\n{}\n'.format(i))
 

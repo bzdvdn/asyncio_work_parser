@@ -2,6 +2,7 @@ import telebot
 import os
 import asyncio
 from random import choice
+from slugify import slugify
 import config
 
 from parser import WorkUaParser, HHRUParser, RabotaUAParser, read_file 
@@ -87,9 +88,15 @@ def parse(message, city,parser):
 	
 	loop.run_until_complete(parser.start_parsing(useragent=useragent))
 	try:
-		file = open(str(message.from_user.id) + '_-_' + str(message.text) + '.doc', 'rb')
+		file = open(
+			slugify(str(message.from_user.id) + '_-_' + str(message.text)) + '.doc', 'rb'
+			)
 		Bot.send_document(message.from_user.id, file)
-		delete_file(str(message.from_user.id)  + '_-_' + str(message.text) + '.doc')
+		delete_file(
+			slugify(
+				str(message.from_user.id)  + '_-_' + str(message.text)
+				) + '.doc'
+			)
 		Bot.send_message(message.from_user.id, 'Готово! Для дальнейшей работы нажмите "/start"')
 	except:
 		Bot.send_message(message.from_user.id, "В этом городе нет вакансий по данному запросу - '{}'".format(message.text))
