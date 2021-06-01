@@ -20,6 +20,6 @@ requests==2.19.1
 six==1.11.0
 slugify==0.0.1
 Unidecode==1.0.22
-urllib3==1.23
+urllib3==1.26.5
 Werkzeug==0.14.1
 yarl==1.2.6
